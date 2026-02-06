@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  displayName  String
+  password     String
+  avatar       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  playlists    Playlist[]
+  playHistory  PlayHistory[]
+  favorites    Favorite[]
+  settings     UserSettings?
+}
+
+model UserSettings {
+  id              String  @id @default(uuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme           String  @default("system")
+  language        String  @default("zh-CN")
+  audioQuality    String  @default("high")
+  crossfade       Int     @default(0)
+  replayGain      Boolean @default(false)
+  equalizerPreset String  @default("flat")
+  equalizerBands  String  @default("[]")
+  lyricsEnabled   Boolean @default(true)
+  gaplessPlayback Boolean @default(true)
+  musicFolders    String  @default("[]")
+}
+
+model Artist {
+  id          String   @id @default(uuid())
+  name        String
+  sortName    String?
+  bio         String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  albums      Album[]
+  tracks      Track[]
+
+  @@index([name])
+}
+
+model Album {
+  id          String   @id @default(uuid())
+  title       String
+  sortTitle   String?
+  artistId    String
+  artist      Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  year        Int?
+  genre       String?
+  coverUrl    String?
+  discCount   Int      @default(1)
+  trackCount  Int      @default(0)
+  duration    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tracks      Track[]
+
+  @@index([title])
+  @@index([artistId])
+}
+
+model Track {
+  id           String   @id @default(uuid())
+  title        String
+  sortTitle    String?
+  artistId     String
+  artist       Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  albumId      String
+  album        Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  trackNumber  Int      @default(1)
+  discNumber   Int      @default(1)
+  duration     Int      @default(0)
+  bitrate      Int?
+  sampleRate   Int?
+  format       String?
+  size         Int      @default(0)
+  filePath     String   @unique
+  genre        String?
+  year         Int?
+  lyrics       String?
+  lyricsType   String?  // "lrc" | "plain" | null
+  playCount    Int      @default(0)
+  rating       Int      @default(0)
+  bpm          Float?
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  playlistTracks PlaylistTrack[]
+  playHistory    PlayHistory[]
+  favorites      Favorite[]
+  queueItems     QueueItem[]
+
+  @@index([title])
+  @@index([artistId])
+  @@index([albumId])
+  @@index([genre])
+}
+
+model Playlist {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  coverUrl    String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPublic    Boolean  @default(false)
+  isSmart     Boolean  @default(false)
+  smartRules  String?  // JSON string for smart playlist rules
+  trackCount  Int      @default(0)
+  duration    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tracks      PlaylistTrack[]
+
+  @@index([userId])
+}
+
+model PlaylistTrack {
+  id         String   @id @default(uuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  trackId    String
+  track      Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  position   Int
+  addedAt    DateTime @default(now())
+
+  @@unique([playlistId, trackId])
+  @@index([playlistId])
+}
+
+model PlayHistory {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId  String
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  playedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([trackId])
+  @@index([playedAt])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId   String
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, trackId])
+  @@index([userId])
+}
+
+model QueueItem {
+  id       String @id @default(uuid())
+  trackId  String
+  track    Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  position Int
+  source   String @default("manual")
+
+  @@index([position])
+}
+
+model ScanLog {
+  id         String   @id @default(uuid())
+  folderPath String
+  status     String
+  filesFound Int      @default(0)
+  filesAdded Int      @default(0)
+  errors     String?
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+}
